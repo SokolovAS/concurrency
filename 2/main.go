@@ -7,6 +7,8 @@
 
 package main
 
+import "time"
+
 // User defines the UserModel. Use this to check whether a User is a
 // Premium user or not
 type User struct {
@@ -17,9 +19,37 @@ type User struct {
 
 // HandleRequest runs the processes requested by users. Returns false if process had to be killed
 func HandleRequest(process func(), u *User) bool {
-	// TODO: you need to modify only this function and implement logic that will return false for 2 levels of tasks.
-	process()
-	return true
+	tl := map[int]time.Duration{u.ID: time.Duration(10 * time.Second)}
+
+	chStop := make(chan bool)
+	chProc := make(chan bool)
+
+	go func() {
+		stop := time.After(tl[u.ID])
+
+		select {
+		case <-stop:
+			chStop <- true
+		}
+	}()
+
+	go func() {
+		start := time.Now()
+		process()
+		t := time.Now()
+		elapsed := t.Sub(start)
+		tl[u.ID] = tl[u.ID] - elapsed
+		chProc <- true
+	}()
+
+	for {
+		select {
+		case <-chStop:
+			return false
+		case <-chProc:
+			return true
+		}
+	}
 }
 
 func main() {
