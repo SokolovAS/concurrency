@@ -53,13 +53,13 @@ func findData(ctx context.Context, cancel context.CancelFunc, ch chan SiteData) 
 	for {
 		select {
 		case site := <-ch:
-			go func() {
+			go func(site SiteData) {
 				if ok := strings.Contains(string(site.data), stringToSearch); ok {
 					checkStr <- fmt.Sprintf(stringToSearch+" string is found in %s", site.uri)
 					return
 				}
 				fmt.Println("Nothing found in", site.uri)
-			}()
+			}(site)
 
 		case str := <-checkStr:
 			fmt.Println(str)
