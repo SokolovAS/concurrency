@@ -35,6 +35,11 @@ func main() {
 
 	findData(ctx, cancel, resultsCh)
 
+	select {
+	case <-ctx.Done():
+		fmt.Println("Finish!")
+	}
+
 	time.Sleep(time.Second)
 }
 
@@ -43,16 +48,23 @@ func findData(ctx context.Context, cancel context.CancelFunc, ch chan SiteData) 
 		fmt.Println("Sending request to", uri)
 		go performRequest(ctx, uri, ch)
 	}
+	checkStr := make(chan string)
 
 	for {
 		select {
 		case site := <-ch:
-			if ok := strings.Contains(string(site.data), stringToSearch); ok {
-				fmt.Println(stringToSearch+" string is found in", site.uri)
-				cancel()
-				return
-			}
-			fmt.Println("Nothing found in", site.uri)
+			go func() {
+				if ok := strings.Contains(string(site.data), stringToSearch); ok {
+					checkStr <- fmt.Sprintf(stringToSearch+" string is found in %s", site.uri)
+					return
+				}
+				fmt.Println("Nothing found in", site.uri)
+			}()
+
+		case str := <-checkStr:
+			fmt.Println(str)
+			cancel()
+			return
 		}
 	}
 }
